@@ -1,0 +1,47 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "launchpilot-edge-worker",
+  "main": "apps/worker/src/index.ts",
+  "compatibility_date": "2026-03-01",
+  "compatibility_flags": ["nodejs_compat_v2"],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "launchpilot-production",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "CACHE_KV",
+      "id": "launchpilot_cache_kv"
+    }
+  ],
+  "vectorize": [
+    {
+      "binding": "DOC_INDEX",
+      "index_name": "launchpilot-docs-vector"
+    }
+  ],
+  "vars": {
+    "ENVIRONMENT": "production",
+    "TARGET_LATENCY_P95_MS": "50"
+  },
+  "env": {
+    "production": {
+      "name": "launchpilot-edge-worker",
+      "vars": {
+        "ENVIRONMENT": "production",
+        "TARGET_LATENCY_P95_MS": "50"
+      }
+    },
+    "staging": {
+      "name": "launchpilot-edge-worker-staging",
+      "vars": {
+        "ENVIRONMENT": "staging",
+        "TARGET_LATENCY_P95_MS": "50"
+      }
+    }
+  }
+}

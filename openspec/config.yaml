@@ -1,0 +1,123 @@
+# ==============================================================================
+# OpenSpec System Engine Configuration
+# Target: LaunchPilot & SaaS Pass Edge Architecture
+# Runtime: Cloudflare Workers (V8 Edge Isolate), Cloudflare D1, KV, Vectorize
+# ==============================================================================
+
+version: "1.0.0"
+project:
+  name: "launchpilot-saas-pass"
+  system_engine: "Google AI Studio"
+  execution_agent: "OpenHands"
+  architecture_pattern: "Domain-Driven Design (DDD) Vertical Slices"
+
+runtime_environment:
+  platform: "cloudflare-workers"
+  compatibility_date: "2026-03-01"
+  compatibility_flags:
+    - "nodejs_compat_v2" # Strict isolation: only explicit web standard polyfills
+  constraints:
+    isolated_environment: true
+    memory_limit_mb: 128
+    cpu_time_limit_ms: 50
+    strict_web_standards_only: true
+    banned_node_builtins:
+      - "fs"
+      - "path"
+      - "child_process"
+      - "net"
+      - "os"
+      - "cluster"
+      - "dns"
+      - "tls"
+      - "http"
+      - "https"
+    allowed_web_apis:
+      - "fetch"
+      - "Request"
+      - "Response"
+      - "Headers"
+      - "ReadableStream"
+      - "WritableStream"
+      - "TransformStream"
+      - "crypto.subtle"
+      - "TextEncoder"
+      - "TextDecoder"
+      - "URL"
+      - "URLSearchParams"
+      - "CompressionStream"
+      - "DecompressionStream"
+
+data_bindings:
+  database:
+    driver: "cloudflare-d1"
+    binding_name: "DB"
+    enforce_parameterized_queries: true
+    disallow_raw_string_interpolation: true
+    migration_tool: "wrangler d1 migrations"
+  cache:
+    driver: "cloudflare-kv"
+    binding_name: "CACHE_KV"
+    ttl_strategy:
+      signals: 300 # 5 minutes
+      user_entitlements: 60 # 1 minute
+      blog_metadata: 3600 # 1 hour
+  vector_store:
+    driver: "cloudflare-vectorize"
+    binding_name: "DOC_INDEX"
+    dimensions: 1536
+    metric: "cosine"
+
+monorepo_topology:
+  structure: "vertical-slice"
+  root_modules_path: "src/modules"
+  slices:
+    - name: "module-a-signal-engine"
+      domain: "pain-signal-mining"
+      description: "Automated willingness-to-pay signal harvesting & scoring"
+      contracts: "openspec/module-a-signal-engine.md"
+    - name: "module-b-scaffold-generator"
+      domain: "architecture-cli"
+      description: "Zero-friction serverless edge template synthesis"
+      contracts: "openspec/module-b-scaffold-generator.md"
+    - name: "module-c-plg-funnel"
+      domain: "plg-metering"
+      description: "Low-friction onboarding, paywalls & stripe billing webhooks"
+      contracts: "openspec/module-c-plg-funnel.md"
+    - name: "module-d-autonomous-ops"
+      domain: "autonomous-support"
+      description: "Ticket classification, log parser & self-healing ops"
+      contracts: "openspec/module-d-autonomous-ops.md"
+    - name: "module-e-saas-pass"
+      domain: "marketplace-entitlements"
+      description: "SaaS Pass subscription gateway & Acquire.com export engine"
+      contracts: "openspec/module-e-saas-pass-marketplace.md"
+    - name: "module-f-mdx-blog"
+      domain: "build-in-public"
+      description: "File-backed MDX blog, live React widgets & RSS generation"
+      contracts: "openspec/module-f-mdx-blog.md"
+
+type_boundaries:
+  strict_null_checks: true
+  no_implicit_any: true
+  exact_optional_property_types: true
+  isolated_declarations: true
+  export_runtime_schemas: "zod" # Schema validation at boundaries
+
+linter_specs:
+  rules:
+    - id: "EDGE-001"
+      description: "Disallow Node.js built-in module imports inside worker handlers"
+      severity: "error"
+      pattern: "^(node:)?(fs|path|child_process|net|os|cluster|dns|tls|http|https)($|/)"
+    - id: "EDGE-002"
+      description: "Require parameterized D1 SQL bindings; forbid raw SQL string concatenation"
+      severity: "error"
+      pattern: "db\\.prepare\\(\\s*`.*\\$\\{.*\\}.*`\\s*\\)"
+    - id: "SPEC-001"
+      description: "Contract-Driven Development: Domain logic must cite corresponding OpenSpec schema"
+      severity: "warning"
+    - id: "PERF-001"
+      description: "Worker execution time must remain strictly sub-50ms at p95"
+      severity: "error"
+      target_latency_p95_ms: 50

@@ -1,0 +1,6 @@
+{
+  "name": "LaunchPilot & SaaS Pass OpenSpec Engine",
+  "description": "OpenSpec architectural definitions, edge runtime guardrails, autonomous OpenHands directives, and Day 1 MDX engineering blog for LaunchPilot & SaaS Pass.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

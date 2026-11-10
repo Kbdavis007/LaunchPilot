@@ -1,0 +1,98 @@
+---
+title: "The LaunchPilot Master Roadmap: From Zero to Automated Exit"
+date: "2026-11-10"
+phase: "Phase 1"
+target_outcomes:
+  - "Publish full 7-phase OpenSpec execution roadmap"
+  - "Embed interactive RoadmapTimeline React widget"
+  - "Lock milestone verification dates across Weeks 1 through 7+"
+author:
+  name: "LaunchPilot Core Architecture Team"
+  role: "Principal Systems Engineer"
+  handle: "@launchpilot"
+summary: "A transparent breakdown of LaunchPilot's phased 7-step execution roadmap, from repository guardrails to our automated Acquire.com exit exporter."
+tags:
+  - "Roadmap"
+  - "Architecture"
+  - "OpenHands"
+  - "SaaS Pass"
+reading_time_minutes: 8
+---
+
+# The LaunchPilot Master Roadmap: From Zero to Automated Exit
+
+Deterministic execution requires an unrelenting focus on phase sequencing. Rather than attempting a monolithic launch, LaunchPilot follows an OpenSpec-driven phased roadmap where each stage delivers an independent, verifiable vertical slice.
+
+This post lays out our master engineering plan across seven distinct phases, spanning repository setup, automated signal harvesting, serverless edge scaffolding, PLG funnels, autonomous support operations, and commercial exit packaging.
+
+---
+
+## 1. The Two-Engine Orchestration Model
+
+Our execution relies on a tight division of labor between architectural specification and autonomous implementation:
+
+* **Google AI Studio (Principal Architect & Spec Engine)**: 
+  Conducts domain modeling, authors strict OpenSpec definitions (`openspec/*.md`), establishes JSON schema constraints, and derives mathematical WTP scoring formulas.
+* **OpenHands (Autonomous Execution Agent)**: 
+  Consumes OpenSpec contracts, executes CLI commands, initializes monorepo packages, configures `wrangler.jsonc` edge bindings, and runs automated testing suites.
+
+```text
+┌─────────────────────────┐          ┌──────────────────────────┐
+│    Google AI Studio     │          │        OpenHands         │
+│   (Principal Architect) │          │    (Autonomous Agent)    │
+└────────────┬────────────┘          └─────────────▲────────────┘
+             │                                     │
+             ▼                                     │
+      [ OpenSpec Contract ] ───────────────────────┘
+     (openspec/config.yaml,
+      module-*.md boundaries)
+```
+
+---
+
+## 2. Interactive Phased Roadmap Explorer
+
+Explore the full execution matrix below. Click on any phase to inspect the target deliverables, technical constraints, and verification protocols.
+
+<RoadmapTimeline activePhase="Phase 1" expandable={true} variant="detailed" />
+
+---
+
+## 3. Deep Dive into the 7 Phases
+
+### Phase 0: Repository Blueprint & Guardrails
+* **Focus**: Strict edge isolation, zero-Node runtime enforcement, and OpenSpec contract linting.
+* **Deliverables**: Root `openspec/config.yaml`, `openhands-instructions.md`, and baseline test harnesses.
+
+### Phase 1: MDX Blog & Day 1 Public Vision (Active)
+* **Focus**: Immediate public transparency, build logs, and dynamic React widget integration.
+* **Deliverables**: `openspec/module-f-mdx-blog.md`, interactive `<WtpCalculator />`, `<RoadmapTimeline />`, and `<TelemetryChart />`.
+
+### Phase 2: Module A (Pain Signal Mining Engine)
+* **Focus**: Automated ingestion of developer friction points across Reddit and GitHub with WTP scoring ($0-100$).
+* **Deliverables**: Regex extraction pipelines, RSS ingestion services, and Cloudflare D1 signal tables.
+
+### Phase 3: Module B (Lean Tech Stack Generator & CLI)
+* **Focus**: Rapid project synthesis emitting pre-configured Cloudflare Worker slices with zero boilerplate.
+* **Deliverables**: Interactive CLI generator, D1 migration templates, and type-safe HTTP routing wrappers.
+
+### Phase 4: Module C (Automated PLG Engine & Outreach Tools)
+* **Focus**: Low-friction developer onboarding, client-side usage metering, and Stripe billing webhooks.
+* **Deliverables**: Metering hooks, conversion paywall overlays, and automated outbound email queues.
+
+### Phase 5: Module D (Autonomous Support & Self-Healing Ops)
+* **Focus**: RAG-based documentation retrieval, log stream listening, and automated triage.
+* **Deliverables**: Vectorize indexer, error classification workers, and automated incident mitigation.
+
+### Phase 6: Module E (SaaS Pass Marketplace & Exit Exporter)
+* **Focus**: Unified subscription gateway with a 70% developer revenue split and automated Acquire.com asset packaging.
+* **Deliverables**: Entitlement validation middleware, usage aggregation crons, and ZIP packaging routines.
+
+### Phase 7: Self-Referential Live Validation Roadmap
+* **Focus**: In-house 7-week live proof-of-concept proving the system on itself from audit tool release to public acquisition listing.
+
+---
+
+## 4. Next Milestone: Pain Signal Mining
+
+With Phase 0 and Phase 1 locked, our execution focus shifts immediately to Phase 2: building the automated WTP Signal Mining Engine. Stay tuned for real-time benchmark logs and signal datasets.

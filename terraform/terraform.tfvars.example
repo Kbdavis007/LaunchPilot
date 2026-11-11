@@ -1,0 +1,16 @@
+# Copy to terraform.tfvars (gitignored) and fill in. In CI these arrive as
+# TF_VAR_* environment variables from repository secrets.
+cloudflare_account_id = "REPLACE_WITH_ACCOUNT_ID"
+# cloudflare_api_token = "REPLACE_WITH_TOKEN"  # prefer TF_VAR_cloudflare_api_token
+
+environment          = "production"
+workers_dev_subdomain = "kbdavis0007"
+
+d1_database_name     = "launchpilot-production"
+kv_namespace_title   = "launchpilot_cache_kv"
+vectorize_index_name = "launchpilot-docs-vector"
+pages_project_name   = "launchpilot-saas-pass"
+
+# Optional custom domain. Leave custom_domain empty to skip DNS + Pages domain.
+custom_domain = ""
+zone_name     = ""

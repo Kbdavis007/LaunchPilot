@@ -4,7 +4,7 @@
 //
 // Usage:
 //   node scripts/sync-wrangler-ids.mjs <terraform-output.json>
-// where the file is produced by:  terraform -chdir=infra output -json
+// where the file is produced by:  terraform -chdir=terraform output -json
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';

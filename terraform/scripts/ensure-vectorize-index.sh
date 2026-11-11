@@ -40,7 +40,7 @@ create_status=$(curl -sS -o /tmp/vectorize_create.json -w '%{http_code}' \
   -H "Authorization: Bearer ${CF_API_TOKEN}" \
   -H 'Content-Type: application/json' \
   --data "$(printf '{"name":"%s","config":{"dimensions":%s,"metric":"%s"}}' \
-    "${INDEX_NAME}" "${INDEX_DIMS}" "${INDEX_METRIC}")")
+    "${INDEX_NAME}" "${INDEX_DIMS}" "${INDEX_METRIC}")"
 
 if [ "${create_status}" != "200" ] && [ "${create_status}" != "201" ]; then
   echo "Failed to create Vectorize index '${INDEX_NAME}' (status ${create_status}):" >&2

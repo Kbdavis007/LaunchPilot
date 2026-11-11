@@ -12,6 +12,8 @@
     "dev": "npm run dev --workspace @launchpilot/pages",
     "dev:worker": "npm run dev --workspace @launchpilot/worker",
     "build": "npm run build --workspace @launchpilot/worker && npm run build --workspace @launchpilot/pages",
+    "build:worker": "rm -rf apps/worker/dist && wrangler deploy --dry-run --config wrangler.jsonc --outdir apps/worker/dist",
+    "seed:blog": "node scripts/seed-blog.mjs",
     "preview": "npm run preview --workspace @launchpilot/pages",
     "typecheck": "npm run typecheck --workspace @launchpilot/worker && npm run typecheck --workspace @launchpilot/pages",
     "lint": "eslint .",

@@ -3,10 +3,27 @@ name: Deploy
 on:
   push:
     branches: [main]
+    # A docs-only or Markdown-only change does not affect what this pipeline
+    # builds or deploys, so do not start a run at all.
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - 'openspec/**'
+      - '.openhands/**'
+      - 'LICENSE'
+      - '.gitignore'
   pull_request:
     branches: [main]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - 'openspec/**'
+      - '.openhands/**'
+      - 'LICENSE'
+      - '.gitignore'
   workflow_dispatch:
 
+# Serialise deployments so an infrastructure apply never overlaps a code push.
 concurrency:
   group: deploy-${{ github.ref }}
   cancel-in-progress: false
@@ -15,8 +32,37 @@ env:
   NODE_VERSION: "24"
 
 jobs:
-  verify:
-    name: Verify (typecheck, lint, build, openspec)
+  # Decide what actually changed. A manual run always exercises every stage.
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      infra: ${{ steps.filter.outputs.infra == 'true' || github.event_name == 'workflow_dispatch' }}
+      code: ${{ steps.filter.outputs.code == 'true' || github.event_name == 'workflow_dispatch' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Path filter
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            infra:
+              - 'terraform/**'
+              - 'apps/worker/**'
+              - 'wrangler.jsonc'
+              - 'migrations/**'
+              - '.github/workflows/deploy.yml'
+            code:
+              - 'apps/pages/**'
+              - 'content/**'
+              - '.github/workflows/deploy.yml'
+
+  # Build once; both downstream stages consume these artifacts.
+  build:
+    name: Build (verify + bundle)
+    needs: changes
+    if: needs.changes.outputs.infra == 'true' || needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -35,95 +81,105 @@ jobs:
       - name: Lint (EDGE-001 / EDGE-002 guardrails)
         run: npm run lint
 
-      - name: Build (worker bundle + Pages site + feeds)
-        run: npm run build
-
       - name: Validate OpenSpec contracts
         run: npx --yes @fission-ai/openspec@latest validate --all
 
+      - name: Verify blog seed migration is current
+        run: node scripts/seed-blog.mjs --check
+
+      - name: Build worker bundle
+        run: npm run build:worker
+
+      - name: Build Pages site
+        run: npm run build --workspace @launchpilot/pages
+
+      - name: Upload worker bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: worker-dist
+          path: apps/worker/dist
+          retention-days: 1
+
+      - name: Upload Pages site
+        uses: actions/upload-artifact@v4
+        with:
+          name: pages-dist
+          path: apps/pages/dist
+          retention-days: 1
+
+  # Infrastructure stage: Terraform owns the Cloudflare resources and the worker
+  # script upload. Runs only when infrastructure inputs change.
   infra:
-    name: Terraform (plan on PR, apply on main)
-    needs: verify
+    name: Infrastructure (Terraform)
+    needs: [changes, build]
+    if: needs.changes.outputs.infra == 'true'
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: infra
+    env:
+      TF_VAR_cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Download worker bundle
+        uses: actions/download-artifact@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
+          name: worker-dist
+          path: apps/worker/dist
 
-      - name: Install dependencies
-        working-directory: .
-        run: npm ci
-
-      - name: Build worker bundle
-        working-directory: .
+      - name: Check state backend credentials
         run: |
-          rm -rf apps/worker/dist
-          npx wrangler deploy --dry-run --config wrangler.jsonc --outdir apps/worker/dist
-
-      - name: Compute bundle digest
-        id: bundle
-        working-directory: .
-        run: echo "sha=$(sha256sum apps/worker/dist/index.js | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          if [ -z "${AWS_ACCESS_KEY_ID}" ] || [ -z "${AWS_SECRET_ACCESS_KEY}" ]; then
+            echo "::error::R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY are not set. See docs/deployment.md section 4a."
+            exit 1
+          fi
 
       - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: "1.10.5"
 
-      - name: Write R2 backend config
+      - name: Write backend config
+        working-directory: terraform
         run: |
           cat > backend.hcl <<EOF
-          bucket = "${{ vars.TF_STATE_BUCKET }}"
-          key    = "launchpilot/terraform.tfstate"
+          bucket = "launchpilot-tfstate"
+          key    = "production/terraform.tfstate"
+          region = "auto"
           endpoints = { s3 = "https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com" }
-          region    = "auto"
           skip_credentials_validation = true
           skip_region_validation      = true
-          skip_metadata_api_check     = true
           skip_requesting_account_id  = true
+          skip_metadata_api_check     = true
+          use_path_style              = true
+          use_lockfile                = true
           EOF
 
-      - name: Terraform fmt check
-        run: terraform fmt -check -recursive
-
       - name: Terraform init
+        working-directory: terraform
         run: terraform init -input=false -backend-config=backend.hcl
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+
+      - name: Terraform format check
+        working-directory: terraform
+        run: terraform fmt -check
 
       - name: Terraform validate
+        working-directory: terraform
         run: terraform validate
 
       - name: Terraform plan
-        run: |
-          terraform plan -input=false -no-color -out=tfplan \
-            -var="cloudflare_api_token=${{ secrets.CLOUDFLARE_API_TOKEN }}" \
-            -var="cloudflare_account_id=${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" \
-            -var="worker_bundle_path=${{ github.workspace }}/apps/worker/dist/index.js" \
-            -var="worker_bundle_sha256=${{ steps.bundle.outputs.sha }}"
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        working-directory: terraform
+        run: terraform plan -input=false -no-color -out=tfplan
 
       - name: Terraform apply
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        working-directory: terraform
         run: terraform apply -input=false -auto-approve tfplan
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
 
       - name: Export Terraform outputs
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        working-directory: terraform
         run: terraform output -json > "${{ github.workspace }}/terraform-outputs.json"
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
 
       - name: Upload Terraform outputs
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
@@ -133,11 +189,22 @@ jobs:
           path: terraform-outputs.json
           retention-days: 1
 
-  deploy:
-    name: Deploy code (D1 migrations + Pages)
-    needs: infra
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+  # Code stage: applies D1 migrations and publishes the frontend. Runs after
+  # infrastructure so the resources and Pages project always exist first.
+  deploy-code:
+    name: Deploy application
+    needs: [changes, build, infra]
+    if: |
+      always() &&
+      needs.changes.outputs.code == 'true' &&
+      needs.build.result == 'success' &&
+      (needs.infra.result == 'success' || needs.infra.result == 'skipped') &&
+      github.ref == 'refs/heads/main' &&
+      github.event_name != 'pull_request'
     runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
       - uses: actions/checkout@v4
 
@@ -149,26 +216,29 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Download Pages site
+        uses: actions/download-artifact@v4
+        with:
+          name: pages-dist
+          path: apps/pages/dist
+
       - name: Download Terraform outputs
         uses: actions/download-artifact@v4
         with:
           name: terraform-outputs
           path: .
+        continue-on-error: true
 
       - name: Sync resource ids into wrangler.jsonc
-        run: node scripts/sync-wrangler-ids.mjs terraform-outputs.json
+        run: |
+          if [ -f terraform-outputs.json ]; then
+            node scripts/sync-wrangler-ids.mjs terraform-outputs.json
+          else
+            echo "::warning::no terraform-outputs.json; assuming wrangler.jsonc ids are current"
+          fi
 
       - name: Apply D1 migrations (remote)
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: wrangler d1 migrations apply launchpilot-production --remote --config wrangler.jsonc
+        run: npx wrangler d1 migrations apply launchpilot-production --remote --config wrangler.jsonc
 
-      - name: Build Pages site
-        run: npm run build --workspace @launchpilot/pages
-
-      - name: Deploy Pages site
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: wrangler pages deploy apps/pages/dist --project-name launchpilot-saas-pass --branch main
+      - name: Deploy to Cloudflare Pages
+        run: npx wrangler pages deploy apps/pages/dist --project-name=launchpilot-saas-pass --branch=main

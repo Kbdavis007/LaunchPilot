@@ -53,6 +53,9 @@ resource "cloudflare_workers_script" "edge" {
   compatibility_date  = var.compatibility_date
   compatibility_flags = var.compatibility_flags
 
+  # The Vectorize binding requires the index to exist at deploy time.
+  depends_on = [terraform_data.vectorize_index]
+
   bindings = concat(
     [
       {

@@ -1,0 +1,17 @@
+# Copy to terraform.tfvars (git-ignored) and fill in real values, or export the
+# matching TF_VAR_* environment variables in CI.
+
+cloudflare_api_token  = "REPLACE_WITH_SCOPED_API_TOKEN"
+cloudflare_account_id = "REPLACE_WITH_ACCOUNT_ID"
+
+environment = "production"
+
+# Path to the wrangler-built worker bundle and its digest. The pipeline computes
+# both after `wrangler deploy --dry-run --outdir <dir>`:
+#   worker_bundle_path   = "../apps/worker/dist/index.js"
+#   worker_bundle_sha256 = "$(sha256sum ../apps/worker/dist/index.js | cut -d' ' -f1)"
+worker_bundle_path   = "../apps/worker/dist/index.js"
+worker_bundle_sha256 = "REPLACE_WITH_BUNDLE_SHA256"
+
+# Optional runtime vars exposed to the worker as plain_text bindings.
+worker_bindings = {}

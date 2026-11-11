@@ -9,3 +9,14 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+crash.log
+tfplan
+terraform.tfvars
+*.auto.tfvars
+backend.hcl
+

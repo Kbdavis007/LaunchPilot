@@ -66,6 +66,14 @@ export default tseslint.config(
     },
   },
   {
+    files: ['scripts/**/*.{js,mjs,cjs}'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'module',
+      globals: { ...globals.node },
+    },
+  },
+  {
     files: ['**/vite.config.ts', '**/*.config.ts'],
     rules: {
       'no-restricted-imports': 'off',
